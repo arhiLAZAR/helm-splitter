@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
 	"strings"
@@ -11,10 +12,10 @@ import (
 )
 
 const tmpDir = "helm_splitter_tmp"
-const modulename = "metrics-server"
 
 var debug bool
 
+// TODO: use config instead of pre-defined map
 var shortcutMap = map[string]string{
 	"ServiceAccount":     "sa",
 	"ClusterRole":        "crol",
@@ -24,6 +25,9 @@ var shortcutMap = map[string]string{
 	"Service":            "svc",
 	"Deployment":         "dep",
 	"APIService":         "asvc",
+	"Secret":             "sec",
+	"ConfigMap":          "cm",
+	"StatefulSet":        "ss",
 }
 
 func main() {
@@ -77,36 +81,54 @@ func main() {
 	dir.Close()
 	checkErr(err)
 
-	for _, file := range dirInfo {
-		splitAndRename(renderedDir + "/" + file.Name())
-	}
+	splitAndRename(helmChart, renderedDir, dirInfo)
 
 	if !debug {
 		os.RemoveAll(tmpDir)
 	}
 }
 
-func splitAndRename(inputFile string) {
+func splitAndRename(modulename, renderedDir string, dirInfo []fs.DirEntry) {
 	obj := make(map[string]interface{})
-	yamlFile, err := os.ReadFile(inputFile)
-	checkErr(err)
 
-	yamlSlice := strings.Split(string(yamlFile), "---")
+	for _, file := range dirInfo {
+		inputFile := renderedDir + "/" + file.Name()
 
-	for _, manifest := range yamlSlice[1:] {
-		manifestByte := []byte("---" + manifest)
+		printDebug("Checking file %v\n", inputFile)
 
-		err = yaml.Unmarshal(manifestByte, obj)
-		checkErr(err)
+		if file.IsDir() {
+			printDebug("It is a directory\n")
+			dir, err := os.Open(inputFile)
+			checkErr(err)
+			subDirInfo, err := dir.ReadDir(-1)
+			dir.Close()
+			checkErr(err)
 
-		shortcut := shortcutMap[obj["kind"].(string)]
-		if shortcut == "" {
-			panic("Unknown kind " + obj["kind"].(string))
+			splitAndRename(modulename+"-"+file.Name(), inputFile, subDirInfo)
+			continue
 		}
 
-		outputFilename := fmt.Sprintf("%v-%v.yaml", shortcut, modulename)
-		fmt.Println("Generating", outputFilename)
-		os.WriteFile(outputFilename, manifestByte, 0666)
+		yamlFile, err := os.ReadFile(inputFile)
+		checkErr(err)
+
+		yamlSlice := strings.Split(string(yamlFile), "---")
+
+		for _, manifest := range yamlSlice[1:] {
+			manifestByte := []byte("---" + manifest)
+
+			err = yaml.Unmarshal(manifestByte, obj)
+			checkErr(err)
+
+			shortcut := shortcutMap[obj["kind"].(string)]
+			if shortcut == "" {
+				panic("Unknown kind " + obj["kind"].(string))
+			}
+
+			outputFilename := fmt.Sprintf("%v-%v.yaml", shortcut, modulename)
+			fmt.Println("Generating", outputFilename)
+			// TODO: do not rewrite existing files
+			os.WriteFile(outputFilename, manifestByte, 0666)
+		}
 	}
 }
 
