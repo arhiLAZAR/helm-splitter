@@ -30,6 +30,15 @@ var shortcutMap = map[string]string{
 	"StatefulSet":        "ss",
 }
 
+type ManifestStruct struct {
+	Kind     string         `yaml:"kind"`
+	Metadata MetadataStruct `yaml:"metadata"`
+}
+
+type MetadataStruct struct {
+	Name string `yaml:"name"`
+}
+
 func main() {
 
 	// Read input params
@@ -116,12 +125,12 @@ func splitAndRename(modulename, renderedDir string, dirInfo []fs.DirEntry) {
 		for _, manifest := range yamlSlice[1:] {
 			manifestByte := []byte("---" + manifest)
 
-			err = yaml.Unmarshal(manifestByte, obj)
+			err = yaml.Unmarshal(manifestByte, &obj)
 			checkErr(err)
 
-			shortcut := shortcutMap[obj["kind"].(string)]
+			shortcut := shortcutMap[obj.Kind]
 			if shortcut == "" {
-				panic("Unknown kind " + obj["kind"].(string))
+				panic("Unknown kind " + obj.Kind)
 			}
 
 			outputFilename := fmt.Sprintf("%v-%v.yaml", shortcut, modulename)
