@@ -90,15 +90,15 @@ func main() {
 	dir.Close()
 	checkErr(err)
 
-	splitAndRename(helmChart, renderedDir, dirInfo)
+	splitAndRename(renderedDir, ".", dirInfo)
 
 	if !debug {
 		os.RemoveAll(tmpDir)
 	}
 }
 
-func splitAndRename(modulename, renderedDir string, dirInfo []fs.DirEntry) {
-	obj := make(map[string]interface{})
+func splitAndRename(renderedDir, subchartDir string, dirInfo []fs.DirEntry) {
+	var obj ManifestStruct
 
 	for _, file := range dirInfo {
 		inputFile := renderedDir + "/" + file.Name()
@@ -113,7 +113,7 @@ func splitAndRename(modulename, renderedDir string, dirInfo []fs.DirEntry) {
 			dir.Close()
 			checkErr(err)
 
-			splitAndRename(modulename+"-"+file.Name(), inputFile, subDirInfo)
+			splitAndRename(inputFile, subchartDir+"/"+file.Name(), subDirInfo)
 			continue
 		}
 
@@ -133,10 +133,19 @@ func splitAndRename(modulename, renderedDir string, dirInfo []fs.DirEntry) {
 				panic("Unknown kind " + obj.Kind)
 			}
 
-			outputFilename := fmt.Sprintf("%v-%v.yaml", shortcut, modulename)
+			manifestName := obj.Metadata.Name
+
+			_, err = os.Stat(subchartDir)
+			if os.IsNotExist(err) {
+				printDebug("Creating directory " + subchartDir + "\n")
+				os.MkdirAll(subchartDir, 0755)
+			}
+
+			outputFilename := fmt.Sprintf("%v/%v-%v.yaml", subchartDir, shortcut, manifestName)
 			fmt.Println("Generating", outputFilename)
 			// TODO: do not rewrite existing files
-			os.WriteFile(outputFilename, manifestByte, 0666)
+			err = os.WriteFile(outputFilename, manifestByte, 0644)
+			checkErr(err)
 		}
 	}
 }
