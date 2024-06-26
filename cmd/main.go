@@ -135,19 +135,23 @@ func splitAndRename(renderedDir, subchartDir string, dirInfo []fs.DirEntry) {
 
 			manifestName := obj.Metadata.Name
 
-			_, err = os.Stat(subchartDir)
-			if os.IsNotExist(err) {
+			if fileIsAbsent(subchartDir) {
 				printDebug("Creating directory " + subchartDir + "\n")
 				os.MkdirAll(subchartDir, 0755)
 			}
 
 			outputFilename := fmt.Sprintf("%v/%v-%v.yaml", subchartDir, shortcut, manifestName)
 			fmt.Println("Generating", outputFilename)
-			// TODO: do not rewrite existing files
+			// TODO: do not rewrite existing files -- add --overwrite key
 			err = os.WriteFile(outputFilename, manifestByte, 0644)
 			checkErr(err)
 		}
 	}
+}
+
+func fileIsAbsent(filename string) bool {
+	_, err := os.Stat(filename)
+	return os.IsNotExist(err)
 }
 
 func execCommand(command ...string) {
