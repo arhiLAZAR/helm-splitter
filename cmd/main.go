@@ -6,29 +6,21 @@ import (
 	"io/fs"
 	"os"
 	"os/exec"
+	"os/user"
 	"strings"
 
 	"gopkg.in/yaml.v3"
 )
 
 const tmpDir = "helm_splitter_tmp"
+const etcConfigPath = "/etc/helm-splitter/config.yaml"
+const homeConfigName = ".helm-splitter.yaml"
 
 var overwrite, debug bool
 
-// TODO: use config instead of pre-defined map
-var shortcutMap = map[string]string{
-	"ServiceAccount":           "sa",
-	"ClusterRole":              "crol",
-	"ClusterRoleBinding":       "crb",
-	"Role":                     "rol",
-	"RoleBinding":              "rb",
-	"Service":                  "svc",
-	"Deployment":               "dep",
-	"APIService":               "asvc",
-	"Secret":                   "sec",
-	"ConfigMap":                "cm",
-	"StatefulSet":              "ss",
-	"CustomResourceDefinition": "crd",
+type configStruct struct {
+	FilePath  string
+	Shortcuts map[string]string `yaml:"shortcuts"`
 }
 
 type ManifestStruct struct {
@@ -43,7 +35,7 @@ type MetadataStruct struct {
 func main() {
 
 	// Read input params
-	var namespace, helmRepo, helmChart, helmChartVersion, customValues, includeCRDsFlag string
+	var namespace, helmRepo, helmChart, helmChartVersion, customValues, includeCRDsFlag, customConfigFile string
 	var skipCRDs bool
 
 	flag.StringVar(&namespace, "namespace", "", "target k8s namespace")
@@ -53,9 +45,12 @@ func main() {
 	flag.StringVar(&customValues, "custom-values-file", "", "file with custom values")
 	flag.BoolVar(&skipCRDs, "skip-crds", false, "do not generate CRDs, default: false")
 	flag.BoolVar(&overwrite, "overwrite", false, "overwrite existing output files, default: false")
+	flag.StringVar(&customConfigFile, "config", "", "path to config file")
 	flag.BoolVar(&debug, "debug", false, "debug")
 
 	flag.Parse()
+
+	config := parseConfig(customConfigFile)
 
 	printDebug("Input values:\nNamespace: %v\nRepository: %v\nChart: %v\nVersion: %v\nCustom Values: %v\nDebug: %t\n", namespace, helmRepo, helmChart, helmChartVersion, customValues, debug)
 
@@ -93,25 +88,77 @@ func main() {
 	execCommand("helm template"+customValues+includeCRDsFlag, "--namespace", namespace, helmChart, tmpDir+"/"+helmChart, "--output-dir", tmpDir+"/rendered")
 
 	// Rename all rendered yamls
-	processRenderedDir(tmpDir + "/rendered/" + helmChart + "/templates")
-	processRenderedDir(tmpDir + "/rendered/" + helmChart + "/crds")
+	processRenderedDir(tmpDir+"/rendered/"+helmChart+"/templates", &config)
+	processRenderedDir(tmpDir+"/rendered/"+helmChart+"/crds", &config)
 
 	if !debug {
 		os.RemoveAll(tmpDir)
 	}
 }
 
-func processRenderedDir(renderedDir string) {
+func parseConfig(customConfigFilePath string) configStruct {
+	var config configStruct
+	var configFilePath string
+
+	defaultShortcuts := map[string]string{
+		"ServiceAccount":           "sa",
+		"ClusterRole":              "crol",
+		"ClusterRoleBinding":       "crb",
+		"Role":                     "rol",
+		"RoleBinding":              "rb",
+		"Service":                  "svc",
+		"Deployment":               "dep",
+		"APIService":               "asvc",
+		"Secret":                   "sec",
+		"ConfigMap":                "cm",
+		"StatefulSet":              "ss",
+		"CustomResourceDefinition": "crd",
+	}
+
+	usr, err := user.Current()
+	checkErr(err)
+	homeConfigPath := usr.HomeDir + "/" + homeConfigName
+
+	if customConfigFilePath != "" {
+		configFilePath = customConfigFilePath
+	} else if !fileIsAbsent(homeConfigPath) {
+		configFilePath = homeConfigPath
+	} else if !fileIsAbsent(etcConfigPath) {
+		configFilePath = etcConfigPath
+	} else {
+		config.Shortcuts = defaultShortcuts
+
+		configYamlData, err := yaml.Marshal(&config)
+		checkErr(err)
+		err = os.WriteFile(homeConfigPath, configYamlData, 0644)
+		checkErr(err)
+
+		config.FilePath = homeConfigPath
+		return config
+	}
+
+	configByte, err := os.ReadFile(configFilePath)
+	checkErr(err)
+
+	err = yaml.Unmarshal(configByte, &config)
+	checkErr(err)
+
+	config.FilePath = configFilePath
+
+	return config
+}
+
+func processRenderedDir(renderedDir string, config *configStruct) {
 	dir, err := os.Open(renderedDir)
 	checkErr(err)
 	dirInfo, err := dir.ReadDir(-1)
 	dir.Close()
 	checkErr(err)
 
-	splitAndRename(renderedDir, ".", dirInfo)
+	splitAndRename(renderedDir, ".", dirInfo, config)
 }
 
-func splitAndRename(renderedDir, subchartDir string, dirInfo []fs.DirEntry) {
+func splitAndRename(renderedDir, subchartDir string, dirInfo []fs.DirEntry, config *configStruct) {
 	var obj ManifestStruct
 
 	for _, file := range dirInfo {
@@ -127,7 +174,7 @@ func splitAndRename(renderedDir, subchartDir string, dirInfo []fs.DirEntry) {
 			dir.Close()
 			checkErr(err)
 
-			splitAndRename(inputFile, subchartDir+"/"+file.Name(), subDirInfo)
+			splitAndRename(inputFile, subchartDir+"/"+file.Name(), subDirInfo, config)
 			continue
 		}
 
@@ -142,9 +189,10 @@ func splitAndRename(renderedDir, subchartDir string, dirInfo []fs.DirEntry) {
 			err = yaml.Unmarshal(manifestByte, &obj)
 			checkErr(err)
 
-			shortcut := shortcutMap[obj.Kind]
+			shortcut := config.Shortcuts[obj.Kind]
 			if shortcut == "" {
-				panic("Unknown kind " + obj.Kind)
+				fmt.Printf("ERROR! Unknown kind \"%v\"! Add a shortcut for this kind to %v and rerun!\n", obj.Kind, config.FilePath)
+				os.Exit(1)
 			}
 
 			manifestName := obj.Metadata.Name
