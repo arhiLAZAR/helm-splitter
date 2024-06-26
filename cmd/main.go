@@ -17,17 +17,18 @@ var overwrite, debug bool
 
 // TODO: use config instead of pre-defined map
 var shortcutMap = map[string]string{
-	"ServiceAccount":     "sa",
-	"ClusterRole":        "crol",
-	"ClusterRoleBinding": "crb",
-	"Role":               "rol",
-	"RoleBinding":        "rb",
-	"Service":            "svc",
-	"Deployment":         "dep",
-	"APIService":         "asvc",
-	"Secret":             "sec",
-	"ConfigMap":          "cm",
-	"StatefulSet":        "ss",
+	"ServiceAccount":           "sa",
+	"ClusterRole":              "crol",
+	"ClusterRoleBinding":       "crb",
+	"Role":                     "rol",
+	"RoleBinding":              "rb",
+	"Service":                  "svc",
+	"Deployment":               "dep",
+	"APIService":               "asvc",
+	"Secret":                   "sec",
+	"ConfigMap":                "cm",
+	"StatefulSet":              "ss",
+	"CustomResourceDefinition": "crd",
 }
 
 type ManifestStruct struct {
@@ -42,13 +43,15 @@ type MetadataStruct struct {
 func main() {
 
 	// Read input params
-	var namespace, helmRepo, helmChart, helmChartVersion, customValues string
+	var namespace, helmRepo, helmChart, helmChartVersion, customValues, includeCRDsFlag string
+	var skipCRDs bool
 
 	flag.StringVar(&namespace, "namespace", "", "target k8s namespace")
 	flag.StringVar(&helmRepo, "repository", "", "helm repository")
 	flag.StringVar(&helmChart, "chart", "", "helm chart name")
 	flag.StringVar(&helmChartVersion, "version", "", "helm chart version, default: <latest>")
 	flag.StringVar(&customValues, "custom-values-file", "", "file with custom values")
+	flag.BoolVar(&skipCRDs, "skip-crds", false, "do not generate CRDs, default: false")
 	flag.BoolVar(&overwrite, "overwrite", false, "overwrite existing output files, default: false")
 	flag.BoolVar(&debug, "debug", false, "debug")
 
@@ -70,6 +73,12 @@ func main() {
 		customValues = " --values " + customValues
 	}
 
+	if skipCRDs {
+		includeCRDsFlag = ""
+	} else {
+		includeCRDsFlag = " --include-crds"
+	}
+
 	// Run helm commands
 	printDebug("Adding helm repository\n")
 	execCommand("helm repo add", helmChart, helmRepo)
@@ -81,10 +90,18 @@ func main() {
 	execCommand("helm pull --untar --untardir "+tmpDir+helmChartVersion, helmChart+"/"+helmChart)
 
 	printDebug("Templating helm chart\n")
-	execCommand("helm template"+customValues, "--namespace", namespace, helmChart, tmpDir+"/"+helmChart, "--output-dir", tmpDir+"/rendered")
+	execCommand("helm template"+customValues+includeCRDsFlag, "--namespace", namespace, helmChart, tmpDir+"/"+helmChart, "--output-dir", tmpDir+"/rendered")
 
 	// Rename all rendered yamls
-	renderedDir := tmpDir + "/rendered/" + helmChart + "/templates"
+	processRenderedDir(tmpDir + "/rendered/" + helmChart + "/templates")
+	processRenderedDir(tmpDir + "/rendered/" + helmChart + "/crds")
+
+	if !debug {
+		os.RemoveAll(tmpDir)
+	}
+}
+
+func processRenderedDir(renderedDir string) {
 	dir, err := os.Open(renderedDir)
 	checkErr(err)
 	dirInfo, err := dir.ReadDir(-1)
@@ -92,10 +109,6 @@ func main() {
 	checkErr(err)
 
 	splitAndRename(renderedDir, ".", dirInfo)
-
-	if !debug {
-		os.RemoveAll(tmpDir)
-	}
 }
 
 func splitAndRename(renderedDir, subchartDir string, dirInfo []fs.DirEntry) {
