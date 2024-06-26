@@ -13,7 +13,7 @@ import (
 
 const tmpDir = "helm_splitter_tmp"
 
-var debug bool
+var overwrite, debug bool
 
 // TODO: use config instead of pre-defined map
 var shortcutMap = map[string]string{
@@ -49,6 +49,7 @@ func main() {
 	flag.StringVar(&helmChart, "chart", "", "helm chart name")
 	flag.StringVar(&helmChartVersion, "version", "", "helm chart version, default: <latest>")
 	flag.StringVar(&customValues, "custom-values-file", "", "file with custom values")
+	flag.BoolVar(&overwrite, "overwrite", false, "overwrite existing output files, default: false")
 	flag.BoolVar(&debug, "debug", false, "debug")
 
 	flag.Parse()
@@ -142,7 +143,16 @@ func splitAndRename(renderedDir, subchartDir string, dirInfo []fs.DirEntry) {
 
 			outputFilename := fmt.Sprintf("%v/%v-%v.yaml", subchartDir, shortcut, manifestName)
 			fmt.Println("Generating", outputFilename)
-			// TODO: do not rewrite existing files -- add --overwrite key
+
+			if !fileIsAbsent(outputFilename) {
+				if overwrite {
+					printDebug("WARNING! File %v is present. Continue anyway, because --overwrite was provided\n", outputFilename)
+				} else {
+					fmt.Printf("ERROR! File %v is present. Use --overwrite if you want to skip this error. Exiting...\n", outputFilename)
+					os.Exit(1)
+				}
+			}
+
 			err = os.WriteFile(outputFilename, manifestByte, 0644)
 			checkErr(err)
 		}
