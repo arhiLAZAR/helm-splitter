@@ -55,8 +55,7 @@ func main() {
 	printDebug("Input values:\nNamespace: %v\nRepository: %v\nChart: %v\nVersion: %v\nCustom Values: %v\nDebug: %t\n", namespace, helmRepo, helmChart, helmChartVersion, customValues, debug)
 
 	if namespace == "" || helmChart == "" || helmRepo == "" {
-		fmt.Println("ERROR! Missing parameters.")
-		fmt.Println("\"--namespace\", \"--repository\" and \"--chart\" MUST be specified!")
+		fmt.Println("ERROR! Missing parameters. \"--namespace\", \"--repository\" and \"--chart\" MUST be specified!")
 		os.Exit(1)
 	}
 
@@ -119,13 +118,18 @@ func parseConfig(customConfigFilePath string) configStruct {
 	checkErr(err)
 	homeConfigPath := usr.HomeDir + "/" + homeConfigName
 
+	printDebug("Checking configs...\n")
 	if customConfigFilePath != "" {
+		printDebug("--config was specified, use %v\n", customConfigFilePath)
 		configFilePath = customConfigFilePath
 	} else if !fileIsAbsent(homeConfigPath) {
+		printDebug("Found %v, use it\n", homeConfigPath)
 		configFilePath = homeConfigPath
 	} else if !fileIsAbsent(etcConfigPath) {
+		printDebug("Found %v, use it\n", etcConfigPath)
 		configFilePath = etcConfigPath
 	} else {
+		printDebug("No config was found, creating a default one in %v\n", homeConfigPath)
 		config.Shortcuts = defaultShortcuts
 
 		configYamlData, err := yaml.Marshal(&config)
@@ -149,6 +153,7 @@ func parseConfig(customConfigFilePath string) configStruct {
 }
 
 func processRenderedDir(renderedDir string, config *configStruct) {
+	printDebug("Processing directory %v\n", renderedDir)
 	dir, err := os.Open(renderedDir)
 	checkErr(err)
 	dirInfo, err := dir.ReadDir(-1)
