@@ -56,7 +56,7 @@ func main() {
 
 	if namespace == "" || helmChart == "" || helmRepo == "" {
 		fmt.Println("ERROR! Missing parameters. \"--namespace\", \"--repository\" and \"--chart\" MUST be specified!")
-		os.Exit(1)
+		exit(1)
 	}
 
 	if helmChartVersion != "" {
@@ -90,9 +90,7 @@ func main() {
 	processRenderedDir(tmpDir+"/rendered/"+helmChart+"/templates", &config)
 	processRenderedDir(tmpDir+"/rendered/"+helmChart+"/crds", &config)
 
-	if !debug {
-		os.RemoveAll(tmpDir)
-	}
+	exit(0)
 }
 
 func parseConfig(customConfigFilePath string) configStruct {
@@ -197,7 +195,7 @@ func splitAndRename(renderedDir, subchartDir string, dirInfo []fs.DirEntry, conf
 			shortcut := config.Shortcuts[obj.Kind]
 			if shortcut == "" {
 				fmt.Printf("ERROR! Unknown kind \"%v\"! Add a shortcut for this kind to %v and rerun!\n", obj.Kind, config.FilePath)
-				os.Exit(1)
+				exit(1)
 			}
 
 			manifestName := obj.Metadata.Name
@@ -215,7 +213,7 @@ func splitAndRename(renderedDir, subchartDir string, dirInfo []fs.DirEntry, conf
 					printDebug("WARNING! File %v is present. Continue anyway, because --overwrite was provided\n", outputFilename)
 				} else {
 					fmt.Printf("ERROR! File %v is present. Use --overwrite if you want to skip this error. Exiting...\n", outputFilename)
-					os.Exit(1)
+					exit(1)
 				}
 			}
 
@@ -245,8 +243,15 @@ func execCommand(command ...string) {
 			fmt.Println(string(output))
 		}
 		fmt.Println(err)
-		os.Exit(1)
+		exit(1)
 	}
+}
+
+func exit(exitCode int) {
+	if !debug {
+		os.RemoveAll(tmpDir)
+	}
+	os.Exit(exitCode)
 }
 
 func printDebug(message ...interface{}) {
