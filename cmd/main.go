@@ -215,6 +215,7 @@ func splitAndRename(renderedDir, subchartDir string, dirInfo []fs.DirEntry, conf
 			shortcut := config.Shortcuts[obj.Kind]
 			if shortcut == "" {
 				fmt.Printf("ERROR! Unknown kind \"%v\"! Add a shortcut for this kind to %v and rerun!\n", obj.Kind, config.FilePath)
+				printDebug("Caused by this manifest:\n%v", string(manifestByte))
 				exit(1)
 			}
 
