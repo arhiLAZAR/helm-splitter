@@ -99,18 +99,29 @@ func parseConfig(customConfigFilePath string) configStruct {
 
 	// Default shortcuts are used only if there is no config file
 	defaultShortcuts := map[string]string{
-		"ServiceAccount":           "sa",
+		"APIService":               "asvc",
 		"ClusterRole":              "crol",
 		"ClusterRoleBinding":       "crb",
+		"ConfigMap":                "cm",
+		"CronJob":                  "cj",
+		"CustomResourceDefinition": "crd",
+		"DaemonSet":                "ds",
+		"Deployment":               "dep",
+		"HorizontalPodAutoscaler":  "hpa",
+		"Ingress":                  "ing",
+		"Job":                      "job",
+		"Namespace":                "ns",
+		"NetworkPolicy":            "np",
+		"PersistentVolumeClaim":    "pvc",
+		"PodDisruptionBudget":      "pdb",
+		"PriorityClass":            "pc",
 		"Role":                     "rol",
 		"RoleBinding":              "rb",
-		"Service":                  "svc",
-		"Deployment":               "dep",
-		"APIService":               "asvc",
 		"Secret":                   "sec",
-		"ConfigMap":                "cm",
+		"Service":                  "svc",
+		"ServiceAccount":           "sa",
 		"StatefulSet":              "ss",
-		"CustomResourceDefinition": "crd",
+		"StorageClass":             "sc",
 	}
 
 	usr, err := user.Current()
