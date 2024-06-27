@@ -19,7 +19,7 @@ const homeConfigName = ".helm-splitter.yaml"
 var overwrite, debug bool
 
 type configStruct struct {
-	FilePath  string
+	FilePath  string            `yaml:"filepath,omitempty"`
 	Shortcuts map[string]string `yaml:"shortcuts"`
 }
 
