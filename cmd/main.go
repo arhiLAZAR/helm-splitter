@@ -154,6 +154,11 @@ func parseConfig(customConfigFilePath string) configStruct {
 
 func processRenderedDir(renderedDir string, config *configStruct) {
 	printDebug("Processing directory %v\n", renderedDir)
+	if fileIsAbsent(renderedDir) {
+		printDebug("Directory not found")
+		return
+	}
+
 	dir, err := os.Open(renderedDir)
 	checkErr(err)
 	dirInfo, err := dir.ReadDir(-1)
