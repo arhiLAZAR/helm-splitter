@@ -218,6 +218,11 @@ func splitAndRename(renderedDir, subchartDir string, dirInfo []fs.DirEntry, conf
 			err = yaml.Unmarshal(manifestByte, &obj)
 			checkErr(err)
 
+			if obj.Kind == "" {
+				printDebug("WARNING! Empty Kind, skipping manifest:\n%v", string(manifestByte))
+				continue
+			}
+
 			shortcut := config.Shortcuts[obj.Kind]
 			if shortcut == "" {
 				fmt.Printf("ERROR! Unknown kind \"%v\"! Add a shortcut for this kind to %v and rerun!\n", obj.Kind, config.FilePath)
