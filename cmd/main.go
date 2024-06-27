@@ -87,8 +87,8 @@ func main() {
 	execCommand("helm template"+customValues+includeCRDsFlag, "--namespace", namespace, helmChart, tmpDir+"/"+helmChart, "--output-dir", tmpDir+"/rendered")
 
 	// Rename all rendered yamls
-	processRenderedDir(tmpDir+"/rendered/"+helmChart+"/templates", &config)
-	processRenderedDir(tmpDir+"/rendered/"+helmChart+"/crds", &config)
+	processRenderedDir(tmpDir+"/rendered/"+helmChart+"/templates", &config, helmChart)
+	processRenderedDir(tmpDir+"/rendered/"+helmChart+"/crds", &config, helmChart)
 
 	exit(0)
 }
@@ -169,7 +169,7 @@ func parseConfig(customConfigFilePath string) configStruct {
 	return config
 }
 
-func processRenderedDir(renderedDir string, config *configStruct) {
+func processRenderedDir(renderedDir string, config *configStruct, helmChart string) {
 	printDebug("Processing directory %v\n", renderedDir)
 	if fileIsAbsent(renderedDir) {
 		printDebug("Directory not found\n")
@@ -182,7 +182,7 @@ func processRenderedDir(renderedDir string, config *configStruct) {
 	dir.Close()
 	checkErr(err)
 
-	splitAndRename(renderedDir, ".", dirInfo, config)
+	splitAndRename(renderedDir, helmChart, dirInfo, config)
 }
 
 func splitAndRename(renderedDir, subchartDir string, dirInfo []fs.DirEntry, config *configStruct) {
