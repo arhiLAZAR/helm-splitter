@@ -97,6 +97,7 @@ func parseConfig(customConfigFilePath string) configStruct {
 	var config configStruct
 	var configFilePath string
 
+	// Default shortcuts are used only if there is no config file
 	defaultShortcuts := map[string]string{
 		"ServiceAccount":           "sa",
 		"ClusterRole":              "crol",
@@ -116,6 +117,7 @@ func parseConfig(customConfigFilePath string) configStruct {
 	checkErr(err)
 	homeConfigPath := usr.HomeDir + "/" + homeConfigName
 
+	// Find config location
 	printDebug("Checking configs...\n")
 	if customConfigFilePath != "" {
 		printDebug("--config was specified, use %v\n", customConfigFilePath)
@@ -164,6 +166,7 @@ func processRenderedDir(renderedDir string, config *configStruct) {
 func splitAndRename(renderedDir, subchartDir string, dirInfo []fs.DirEntry, config *configStruct) {
 	var obj ManifestStruct
 
+	// Iterate over all rendered files
 	for _, file := range dirInfo {
 		inputFile := renderedDir + "/" + file.Name()
 
@@ -184,6 +187,7 @@ func splitAndRename(renderedDir, subchartDir string, dirInfo []fs.DirEntry, conf
 		yamlFile, err := os.ReadFile(inputFile)
 		checkErr(err)
 
+		// Split yamls containing multiple manifests
 		yamlSlice := strings.Split(string(yamlFile), "---")
 
 		for _, manifest := range yamlSlice[1:] {
