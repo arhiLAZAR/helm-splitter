@@ -137,13 +137,13 @@ func parseConfig(customConfigFilePath string) configStruct {
 	// Find config location
 	printDebug("Checking configs...\n")
 	if customConfigFilePath != "" {
-		printDebug("--config was specified, use %v\n", customConfigFilePath)
+		printDebug("--config was specified, using %v\n", customConfigFilePath)
 		configFilePath = customConfigFilePath
 	} else if !fileIsAbsent(homeConfigPath) {
-		printDebug("Found %v, use it\n", homeConfigPath)
+		printDebug("Found %v, using it\n", homeConfigPath)
 		configFilePath = homeConfigPath
 	} else if !fileIsAbsent(etcConfigPath) {
-		printDebug("Found %v, use it\n", etcConfigPath)
+		printDebug("Found %v, using it\n", etcConfigPath)
 		configFilePath = etcConfigPath
 	} else {
 		printDebug("No config was found, creating a default one in %v\n", homeConfigPath)
