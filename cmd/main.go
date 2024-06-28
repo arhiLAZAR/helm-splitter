@@ -50,9 +50,9 @@ func main() {
 
 	flag.Parse()
 
-	config := parseConfig(customConfigFile)
+	printDebug("Input values:\nNamespace: %v\nRepository: %v\nChart: %v\nVersion: %v\nCustom Values: %v\nSkip CRDs: %t\nOverwrte: %t\nConfig: %v\nDebug: %t\n", namespace, helmRepo, helmChart, helmChartVersion, customValues, skipCRDs, overwrite, customConfigFile, debug)
 
-	printDebug("Input values:\nNamespace: %v\nRepository: %v\nChart: %v\nVersion: %v\nCustom Values: %v\nDebug: %t\n", namespace, helmRepo, helmChart, helmChartVersion, customValues, debug)
+	config := parseConfig(customConfigFile)
 
 	if namespace == "" || helmChart == "" || helmRepo == "" {
 		fmt.Println("ERROR! Missing parameters. \"--namespace\", \"--repository\" and \"--chart\" MUST be specified!")
