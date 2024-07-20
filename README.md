@@ -27,6 +27,7 @@ Change variables for your desired helm.
 | --custom-values-file | File name with custom helm values.yaml | - | no |
 | --namespace | Kubernetes namespace the chart will be installed in | - | yes |
 | --skip-crds | By default, the tool generates CRDs. Use the flag to skip this step | false | no |
+| --output-dir | Output directory | \<helm_chart_name\> | no |
 | --overwrite | Allow the tool to overwrite existing output files | false | no |
 | --config | Path to the config file (see below) | - | no |
 | --debug | Enable debug output | false | no |

@@ -35,7 +35,7 @@ type MetadataStruct struct {
 func main() {
 
 	// Read input params
-	var namespace, helmRepo, helmChart, helmChartVersion, customValues, includeCRDsFlag, customConfigFile string
+	var namespace, helmRepo, helmChart, helmChartVersion, customValues, outputDir, includeCRDsFlag, customConfigFile string
 	var skipCRDs bool
 
 	flag.StringVar(&namespace, "namespace", "", "target k8s namespace")
@@ -43,6 +43,7 @@ func main() {
 	flag.StringVar(&helmChart, "chart", "", "helm chart name")
 	flag.StringVar(&helmChartVersion, "version", "", "helm chart version, default: <latest>")
 	flag.StringVar(&customValues, "custom-values-file", "", "file with custom values")
+	flag.StringVar(&outputDir, "output-dir", "", "output directory")
 	flag.BoolVar(&skipCRDs, "skip-crds", false, "do not generate CRDs, default: false")
 	flag.BoolVar(&overwrite, "overwrite", false, "overwrite existing output files, default: false")
 	flag.StringVar(&customConfigFile, "config", "", "path to config file")
@@ -67,6 +68,10 @@ func main() {
 		customValues = " --values " + customValues
 	}
 
+	if outputDir == "" {
+		outputDir = helmChart
+	}
+
 	if skipCRDs {
 		includeCRDsFlag = ""
 	} else {
@@ -87,8 +92,8 @@ func main() {
 	execCommand("helm template"+customValues+includeCRDsFlag, "--namespace", namespace, helmChart, tmpDir+"/"+helmChart, "--output-dir", tmpDir+"/rendered")
 
 	// Rename all rendered yamls
-	processRenderedDir(tmpDir+"/rendered/"+helmChart+"/templates", &config, helmChart)
-	processRenderedDir(tmpDir+"/rendered/"+helmChart+"/crds", &config, helmChart)
+	processRenderedDir(tmpDir+"/rendered/"+helmChart+"/templates", &config, outputDir)
+	processRenderedDir(tmpDir+"/rendered/"+helmChart+"/crds", &config, outputDir)
 
 	exit(0)
 }
@@ -169,7 +174,7 @@ func parseConfig(customConfigFilePath string) configStruct {
 	return config
 }
 
-func processRenderedDir(renderedDir string, config *configStruct, helmChart string) {
+func processRenderedDir(renderedDir string, config *configStruct, outputDir string) {
 	printDebug("Processing directory %v\n", renderedDir)
 	if fileIsAbsent(renderedDir) {
 		printDebug("Directory not found\n")
@@ -182,7 +187,7 @@ func processRenderedDir(renderedDir string, config *configStruct, helmChart stri
 	dir.Close()
 	checkErr(err)
 
-	splitAndRename(renderedDir, helmChart, dirInfo, config)
+	splitAndRename(renderedDir, outputDir, dirInfo, config)
 }
 
 func splitAndRename(renderedDir, subchartDir string, dirInfo []fs.DirEntry, config *configStruct) {
