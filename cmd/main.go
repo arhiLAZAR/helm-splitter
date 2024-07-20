@@ -34,68 +34,63 @@ type MetadataStruct struct {
 
 func main() {
 
-	// Read input params
+	// Read and validate input params
 	var namespace, helmRepo, helmChart, helmChartVersion, customValues, outputDir, includeCRDsFlag, customConfigFile string
 	var skipCRDs bool
-
-	flag.StringVar(&namespace, "namespace", "", "target k8s namespace")
-	flag.StringVar(&helmRepo, "repository", "", "helm repository")
-	flag.StringVar(&helmChart, "chart", "", "helm chart name")
-	flag.StringVar(&helmChartVersion, "version", "", "helm chart version, default: <latest>")
-	flag.StringVar(&customValues, "custom-values-file", "", "file with custom values")
-	flag.StringVar(&outputDir, "output-dir", "", "output directory")
-	flag.BoolVar(&skipCRDs, "skip-crds", false, "do not generate CRDs, default: false")
-	flag.BoolVar(&overwrite, "overwrite", false, "overwrite existing output files, default: false")
-	flag.StringVar(&customConfigFile, "config", "", "path to config file")
-	flag.BoolVar(&debug, "debug", false, "debug")
-
-	flag.Parse()
-
-	printDebug("Input values:\nNamespace: %v\nRepository: %v\nChart: %v\nVersion: %v\nCustom Values: %v\nSkip CRDs: %t\nOverwrte: %t\nConfig: %v\nDebug: %t\n", namespace, helmRepo, helmChart, helmChartVersion, customValues, skipCRDs, overwrite, customConfigFile, debug)
+	readInputParams(&namespace, &helmRepo, &helmChart, &helmChartVersion, &customValues, &outputDir, &customConfigFile, &skipCRDs)
+	validateInputParams(&namespace, &helmChart, &helmRepo, &helmChartVersion, &customValues, &outputDir, &includeCRDsFlag, skipCRDs)
 
 	config := parseConfig(customConfigFile)
 
-	if namespace == "" || helmChart == "" || helmRepo == "" {
-		fmt.Println("ERROR! Missing parameters. \"--namespace\", \"--repository\" and \"--chart\" MUST be specified!")
-		exit(1)
-	}
-
-	if helmChartVersion != "" {
-		helmChartVersion = " --version " + helmChartVersion
-	}
-
-	if customValues != "" {
-		customValues = " --values " + customValues
-	}
-
-	if outputDir == "" {
-		outputDir = helmChart
-	}
-
-	if skipCRDs {
-		includeCRDsFlag = ""
-	} else {
-		includeCRDsFlag = " --include-crds"
-	}
-
-	// Run helm commands
-	printDebug("Adding helm repository\n")
-	execCommand("helm repo add", helmChart, helmRepo)
-
-	printDebug("Updating helm repository\n")
-	execCommand("helm repo update")
-
-	printDebug("Pulling helm chart\n")
-	execCommand("helm pull --untar --untardir "+tmpDir+helmChartVersion, helmChart+"/"+helmChart)
-
-	printDebug("Templating helm chart\n")
-	execCommand("helm template"+customValues+includeCRDsFlag, "--namespace", namespace, helmChart, tmpDir+"/"+helmChart, "--output-dir", tmpDir+"/rendered")
+	execHelmCommands(helmChart, helmRepo, helmChartVersion, customValues, includeCRDsFlag, namespace)
 
 	// Rename all rendered yamls
 	processRenderedDir(tmpDir+"/rendered/"+helmChart+"/templates", &config, outputDir)
 	processRenderedDir(tmpDir+"/rendered/"+helmChart+"/crds", &config, outputDir)
 
 	exit(0)
+}
+
+func readInputParams(namespace, helmRepo, helmChart, helmChartVersion, customValues, outputDir, customConfigFile *string, skipCRDs *bool) {
+	flag.StringVar(namespace, "namespace", "", "target k8s namespace")
+	flag.StringVar(helmRepo, "repository", "", "helm repository")
+	flag.StringVar(helmChart, "chart", "", "helm chart name")
+	flag.StringVar(helmChartVersion, "version", "", "helm chart version, default: <latest>")
+	flag.StringVar(customValues, "custom-values-file", "", "file with custom values")
+	flag.StringVar(outputDir, "output-dir", "", "output directory")
+	flag.BoolVar(skipCRDs, "skip-crds", false, "do not generate CRDs, default: false")
+	flag.BoolVar(&overwrite, "overwrite", false, "overwrite existing output files, default: false")
+	flag.StringVar(customConfigFile, "config", "", "path to config file")
+	flag.BoolVar(&debug, "debug", false, "debug")
+
+	flag.Parse()
+
+	printDebug("Input values:\nNamespace: %v\nRepository: %v\nChart: %v\nVersion: %v\nCustom Values: %v\nSkip CRDs: %t\nOverwrte: %t\nConfig: %v\nDebug: %t\n", *namespace, *helmRepo, *helmChart, *helmChartVersion, *customValues, *skipCRDs, overwrite, *customConfigFile, debug)
+}
+
+func validateInputParams(namespace, helmChart, helmRepo, helmChartVersion, customValues, outputDir, includeCRDsFlag *string, skipCRDs bool) {
+	if *namespace == "" || *helmChart == "" || *helmRepo == "" {
+		fmt.Println("ERROR! Missing parameters. \"--namespace\", \"--repository\" and \"--chart\" MUST be specified!")
+		exit(1)
+	}
+
+	if *helmChartVersion != "" {
+		*helmChartVersion = " --version " + *helmChartVersion
+	}
+
+	if *customValues != "" {
+		*customValues = " --values " + *customValues
+	}
+
+	if *outputDir == "" {
+		*outputDir = *helmChart
+	}
+
+	if skipCRDs {
+		*includeCRDsFlag = ""
+	} else {
+		*includeCRDsFlag = " --include-crds"
+	}
 }
 
 func parseConfig(customConfigFilePath string) configStruct {
@@ -172,6 +167,21 @@ func parseConfig(customConfigFilePath string) configStruct {
 	config.FilePath = configFilePath
 
 	return config
+}
+
+// Add and update helm repo, pull and template helm chart
+func execHelmCommands(helmChart, helmRepo, helmChartVersion, customValues, includeCRDsFlag, namespace string) {
+	printDebug("Adding helm repository\n")
+	execCommand("helm repo add", helmChart, helmRepo)
+
+	printDebug("Updating helm repository\n")
+	execCommand("helm repo update")
+
+	printDebug("Pulling helm chart\n")
+	execCommand("helm pull --untar --untardir "+tmpDir+helmChartVersion, helmChart+"/"+helmChart)
+
+	printDebug("Templating helm chart\n")
+	execCommand("helm template"+customValues+includeCRDsFlag, "--namespace", namespace, helmChart, tmpDir+"/"+helmChart, "--output-dir", tmpDir+"/rendered")
 }
 
 func processRenderedDir(renderedDir string, config *configStruct, outputDir string) {
