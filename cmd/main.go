@@ -48,6 +48,7 @@ func main() {
 	processRenderedDir(tmpDir+"/rendered/"+helmChart+"/templates", &config, outputDir)
 	processRenderedDir(tmpDir+"/rendered/"+helmChart+"/crds", &config, outputDir)
 
+	fmt.Println("Done!")
 	exit(0)
 }
 
