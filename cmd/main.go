@@ -202,8 +202,6 @@ func processRenderedDir(renderedDir string, config *configStruct, outputDir stri
 }
 
 func splitAndRename(renderedDir, subchartDir string, dirInfo []fs.DirEntry, config *configStruct) {
-	var obj ManifestStruct
-
 	// Iterate over all rendered files
 	for _, file := range dirInfo {
 		inputFile := renderedDir + "/" + file.Name()
@@ -229,6 +227,7 @@ func splitAndRename(renderedDir, subchartDir string, dirInfo []fs.DirEntry, conf
 		yamlSlice := strings.Split(string(yamlFile), "---")
 
 		for _, manifest := range yamlSlice[1:] {
+			var obj ManifestStruct
 			manifestByte := []byte("---" + manifest)
 
 			err = yaml.Unmarshal(manifestByte, &obj)
