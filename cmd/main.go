@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"os/user"
+	"regexp"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -224,7 +225,7 @@ func splitAndRename(renderedDir, subchartDir string, dirInfo []fs.DirEntry, conf
 		checkErr(err)
 
 		// Split yamls containing multiple manifests
-		yamlSlice := strings.Split(string(yamlFile), "---")
+		yamlSlice := regexp.MustCompile("(?m)^(---[[:space:]]*)$").Split(string(yamlFile), -1)
 
 		for _, manifest := range yamlSlice[1:] {
 			var obj ManifestStruct
